@@ -1,0 +1,606 @@
+{
+  "test_codebase": "python_ecommerce",
+  "description": "E-Commerce Platform with 8 SQL injection and SSTI vulnerabilities for testing classification logic",
+  "vulnerability_statistics": {
+    "total_vulnerabilities": 8,
+    "true_positives": 3,
+    "false_positives": 5,
+    "false_positive_breakdown": {
+      "FP_DEAD_CODE": 1,
+      "FP_SANITIZED": 2,
+      "FP_SAFE_CONTEXT": 2
+    }
+  },
+  "vulnerabilities": [
+    {
+      "vuln_id": "VULN-1",
+      "finding_id": "python-ecommerce-sqli-001",
+      "classification": "TRUE_POSITIVE",
+      "cwe": "CW E-89",
+      "severity": "HIGH",
+      "vulnerability_type": "SQL Injection",
+      "sink_function": "repositories/product_repository.py::ProductRepository::execute_search_query",
+      "sink_line": 24,
+      "sink_code_pattern": "cursor.execute(query)",
+      "description": "Unsanitized user input from search endpoint flows directly into SQL query construction",
+      "exploitability": "HIGH",
+      "impact": "Database compromise, data exfiltration",
+      "attack_paths": [
+        {
+          "path_id": "path_1",
+          "source_function": "app.py::search_products",
+          "sink_function": "repositories/product_repository.py::ProductRepository::execute_search_query",
+          "path_length": 5,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "function_chain": [
+            {
+              "function_id": "app.py::search_products",
+              "name": "search_products",
+              "file": "app.py",
+              "line": 18,
+              "is_entry_point": true,
+              "description": "Flask route accepting user search input via GET parameter 'q'"
+            },
+            {
+              "function_id": "controllers/product_controller.py::ProductController::handle_search",
+              "name": "handle_search",
+              "file": "controllers/product_controller.py",
+              "line": 11,
+              "description": "Controller passes untrusted input without validation"
+            },
+            {
+              "function_id": "services/product_service.py::ProductService::process_search_query",
+              "name": "process_search_query",
+              "file": "services/product_service.py",
+              "line": 13,
+              "description": "Service layer processes query but doesn't sanitize"
+            },
+            {
+              "function_id": "middleware/query_processor.py::QueryProcessor::enrich_query",
+              "name": "enrich_query",
+              "file": "middleware/query_processor.py",
+              "line": 11,
+              "description": "Adds wildcards to search term without escaping"
+            },
+            {
+              "function_id": "middleware/query_processor.py::QueryProcessor::build_query",
+              "name": "build_query",
+              "file": "middleware/query_processor.py",
+              "line": 19,
+              "description": "Builds query and calls repository"
+            },
+            {
+              "function_id": "repositories/product_repository.py::ProductRepository::execute_search_query",
+              "name": "execute_search_query",
+              "file": "repositories/product_repository.py",
+              "line": 11,
+              "description": "SINK: Executes SQL query with string concatenation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN-2",
+      "finding_id": "python-ecommerce-sqli-002",
+      "classification": "FALSE_POSITIVE",
+      "false_positive_type": "FP_SANITIZED",
+      "cwe": "CWE-89",
+      "severity": "HIGH",
+      "vulnerability_type": "SQL Injection",
+      "sink_function": "repositories/product_repository.py::ProductRepository::execute_filter_query",
+      "sink_line": 43,
+      "sink_code_pattern": "cursor.execute(query)",
+      "description": "SQL injection pattern detected but input is properly sanitized using regex whitelist before reaching sink",
+      "why_false_positive": "ValidationMiddleware.sanitize_input() applies regex pattern r'[^\\w\\s-]' removing all SQL metacharacters",
+      "sanitization_location": "middleware/validation_middleware.py::ValidationMiddleware::sanitize_input",
+      "sanitization_line": 18,
+      "attack_paths": [
+        {
+          "path_id": "path_1",
+          "source_function": "app.py::filter_products",
+          "sink_function": "repositories/product_repository.py::ProductRepository::execute_filter_query",
+          "path_length": 5,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "function_chain": [
+            {
+              "function_id": "app.py::filter_products",
+              "name": "filter_products",
+              "file": "app.py",
+              "line": 25,
+              "is_entry_point": true,
+              "description": "Flask POST route accepting filter criteria"
+            },
+            {
+              "function_id": "controllers/product_controller.py::ProductController::handle_filter",
+              "name": "handle_filter",
+              "file": "controllers/product_controller.py",
+              "line": 18,
+              "description": "Controller forwards filters to service"
+            },
+            {
+              "function_id": "services/product_service.py::ProductService::validate_and_filter",
+              "name": "validate_and_filter",
+              "file": "services/product_service.py",
+              "line": 21,
+              "description": "Service calls validation middleware"
+            },
+            {
+              "function_id": "middleware/validation_middleware.py::ValidationMiddleware::sanitize_input",
+              "name": "sanitize_input",
+              "file": "middleware/validation_middleware.py",
+              "line": 8,
+              "description": "SANITIZATION: Removes all SQL injection characters using regex"
+            },
+            {
+              "function_id": "middleware/query_processor.py::QueryProcessor::prepare_query",
+              "name": "prepare_query",
+              "file": "middleware/query_processor.py",
+              "line": 27,
+              "description": "Processes already-sanitized filters"
+            },
+            {
+              "function_id": "repositories/product_repository.py::ProductRepository::execute_filter_query",
+              "name": "execute_filter_query",
+              "file": "repositories/product_repository.py",
+              "line": 30,
+              "description": "SINK: Executes query with sanitized input"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN-3",
+      "finding_id": "python-ecommerce-sqli-003",
+      "classification": "FALSE_POSITIVE",
+      "false_positive_type": "FP_DEAD_CODE",
+      "cwe": "CWE-89",
+      "severity": "HIGH",
+      "vulnerability_type": "SQL Injection",
+      "sink_function": "repositories/product_repository.py::ProductRepository::execute_legacy_query",
+      "sink_line": 57,
+      "sink_code_pattern": "cursor.execute(query)",
+      "description": "SQL injection in deprecated legacy code path that is never executed",
+      "why_false_positive": "All attack paths are unreachable due to 'if False:' dead code branch in app.py line 35",
+      "dead_code_locations": [
+        "app.py::legacy_product_search line 35: if False branch never executes"
+      ],
+      "attack_paths": [
+        {
+          "path_id": "path_1",
+          "source_function": "app.py::legacy_product_search",
+          "sink_function": "repositories/product_repository.py::ProductRepository::execute_legacy_query",
+          "path_length": 5,
+          "is_reachable": false,
+          "has_dead_code": true,
+          "dead_code_reason": "if False condition at app.py:35",
+          "function_chain": [
+            {
+              "function_id": "app.py::legacy_product_search",
+              "name": "legacy_product_search",
+              "file": "app.py",
+              "line": 32,
+              "is_entry_point": true,
+              "is_dead_code": true,
+              "description": "Flask route but code inside 'if False' block"
+            },
+            {
+              "function_id": "controllers/product_controller.py::ProductController::handle_legacy_search",
+              "name": "handle_legacy_search",
+              "file": "controllers/product_controller.py",
+              "line": 25,
+              "is_dead_code": true,
+              "description": "Never called due to parent dead code"
+            },
+            {
+              "function_id": "services/product_service.py::ProductService::legacy_search_handler",
+              "name": "legacy_search_handler",
+              "file": "services/product_service.py",
+              "line": 30,
+              "is_dead_code": true,
+              "description": "Part of unreachable chain"
+            },
+            {
+              "function_id": "middleware/query_processor.py::QueryProcessor::legacy_query_builder",
+              "name": "legacy_query_builder",
+              "file": "middleware/query_processor.py",
+              "line": 34,
+              "is_dead_code": true,
+              "description": "Part of unreachable chain"
+            },
+            {
+              "function_id": "repositories/product_repository.py::ProductRepository::execute_legacy_query",
+              "name": "execute_legacy_query",
+              "file": "repositories/product_repository.py",
+              "line": 49,
+              "is_dead_code": true,
+              "description": "SINK: Never reached due to dead code"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN-4",
+      "finding_id": "python-ecommerce-sqli-004",
+      "classification": "TRUE_POSITIVE",
+      "cwe": "CWE-89",
+      "severity": "HIGH",
+      "vulnerability_type": "SQL Injection",
+      "sink_function": "repositories/order_repository.py::OrderRepository::execute_order_query",
+      "sink_line": 23,
+      "sink_code_pattern": "cursor.execute(query)",
+      "description": "SQL injection in order search with multiple attack paths, one reachable and one unreachable",
+      "exploitability": "HIGH",
+      "impact": "Unauthorized access to order data",
+      "notes": "This is TRUE_POSITIVE because at least one path is reachable. The presence of dead code paths doesn't make the vulnerability false positive.",
+      "attack_paths": [
+        {
+          "path_id": "path_1_reachable",
+          "source_function": "app.py::search_orders",
+          "sink_function": "repositories/order_repository.py::OrderRepository::execute_order_query",
+          "path_length": 4,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "function_chain": [
+            {
+              "function_id": "app.py::search_orders",
+              "name": "search_orders",
+              "file": "app.py",
+              "line": 43,
+              "is_entry_point": true,
+              "description": "Flask route accepting order_id and customer parameters"
+            },
+            {
+              "function_id": "controllers/order_controller.py::OrderController::process_order_search",
+              "name": "process_order_search",
+              "file": "controllers/order_controller.py",
+              "line": 13,
+              "description": "Controller processes order search"
+            },
+            {
+              "function_id": "services/order_service.py::OrderService::query_orders",
+              "name": "query_orders",
+              "file": "services/order_service.py",
+              "line": 13,
+              "description": "Service calls repository directly without sanitization"
+            },
+            {
+              "function_id": "repositories/order_repository.py::OrderRepository::execute_order_query",
+              "name": "execute_order_query",
+              "file": "repositories/order_repository.py",
+              "line": 11,
+              "description": "SINK: Vulnerable SQL execution"
+            }
+          ]
+        },
+        {
+          "path_id": "path_2_unreachable",
+          "source_function": "app.py::search_orders",
+          "sink_function": "repositories/legacy_repository.py::LegacyRepository::old_query_method",
+          "path_length": 5,
+          "is_reachable": false,
+          "has_dead_code": true,
+          "dead_code_reason": "if False condition at controllers/order_controller.py:19",
+          "function_chain": [
+            {
+              "function_id": "app.py::search_orders",
+              "name": "search_orders",
+              "file": "app.py",
+              "line": 43,
+              "is_entry_point": true
+            },
+            {
+              "function_id": "controllers/order_controller.py::OrderController::process_order_search",
+              "name": "process_order_search",
+              "file": "controllers/order_controller.py",
+              "line": 13,
+              "is_dead_code": true,
+              "description": "Contains 'if False' branch"
+            },
+            {
+              "function_id": "services/legacy_service.py::LegacyOrderService::legacy_order_lookup",
+              "name": "legacy_order_lookup",
+              "file": "services/legacy_service.py",
+              "line": 11,
+              "is_dead_code": true
+            },
+            {
+              "function_id": "repositories/legacy_repository.py::LegacyRepository::old_query_method",
+              "name": "old_query_method",
+              "file": "repositories/legacy_repository.py",
+              "line": 11,
+              "is_dead_code": true,
+              "description": "SINK: Never reached"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN-5",
+      "finding_id": "python-ecommerce-sqli-005",
+      "classification": "FALSE_POSITIVE",
+      "false_positive_type": "FP_SAFE_CONTEXT",
+      "cwe": "CWE-89",
+      "severity": "MEDIUM",
+      "vulnerability_type": "SQL Injection",
+      "sink_function": "repositories/order_repository.py::OrderRepository::execute_report_query",
+      "sink_line": 41,
+      "sink_code_pattern": "cursor.execute(query, ...)",
+      "description": "SQL injection pattern detected but uses parameterized queries with proper binding",
+      "why_false_positive": "Despite f-string usage in query construction, actual execution uses parameterized binding (cursor.execute with tuple)",
+      "safe_context_evidence": [
+        "Line 38: query uses ? placeholders",
+        "Line 39-42: cursor.execute() receives parameters as tuple",
+        "Line 13-23 in ReportGenerator: Strict whitelist validation for report_type"
+      ],
+      "attack_paths": [
+        {
+          "path_id": "path_1",
+          "source_function": "app.py::generate_order_report",
+          "sink_function": "repositories/order_repository.py::OrderRepository::execute_report_query",
+          "path_length": 5,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "function_chain": [
+            {
+              "function_id": "app.py::generate_order_report",
+              "name": "generate_order_report",
+              "file": "app.py",
+              "line": 53,
+              "is_entry_point": true
+            },
+            {
+              "function_id": "controllers/order_controller.py::OrderController::create_report",
+              "name": "create_report",
+              "file": "controllers/order_controller.py",
+              "line": 27
+            },
+            {
+              "function_id": "services/order_service.py::OrderService::build_report_query",
+              "name": "build_report_query",
+              "file": "services/order_service.py",
+              "line": 20
+            },
+            {
+              "function_id": "middleware/report_generator.py::ReportGenerator::validate_report_params",
+              "name": "validate_report_params",
+              "file": "middleware/report_generator.py",
+              "line": 8,
+              "description": "Applies whitelist validation"
+            },
+            {
+              "function_id": "middleware/report_generator.py::ReportGenerator::format_report_data",
+              "name": "format_report_data",
+              "file": "middleware/report_generator.py",
+              "line": 26
+            },
+            {
+              "function_id": "repositories/order_repository.py::OrderRepository::execute_report_query",
+              "name": "execute_report_query",
+              "file": "repositories/order_repository.py",
+              "line": 30,
+              "description": "SINK: Uses parameterized query"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN-6",
+      "finding_id": "python-ecommerce-ssti-001",
+      "classification": "FALSE_POSITIVE",
+      "false_positive_type": "FP_SANITIZED",
+      "cwe": "CWE-1336",
+      "severity": "HIGH",
+      "vulnerability_type": "Server-Side Template Injection",
+      "sink_function": "middleware/template_processor.py::TemplateProcessor::render_update_template",
+      "sink_line": 27,
+      "sink_code_pattern": "render_template_string(sanitized_template)",
+      "description": "SSTI pattern detected but template input is properly sanitized using markupsafe.escape and regex",
+      "why_false_positive": "TemplateProcessor.sanitize_template_input() applies HTML escaping and removes Jinja2 template syntax using regex",
+      "sanitization_location": "middleware/template_processor.py::TemplateProcessor::sanitize_template_input",
+      "sanitization_methods": [
+        "markupsafe.escape() for HTML entity encoding",
+        "Regex removal of {{ }} patterns",
+        "Regex removal of {% %} patterns"
+      ],
+      "attack_paths": [
+        {
+          "path_id": "path_1",
+          "source_function": "app.py::admin_bulk_update",
+          "sink_function": "middleware/template_processor.py::TemplateProcessor::render_update_template",
+          "path_length": 5,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "function_chain": [
+            {
+              "function_id": "app.py::admin_bulk_update",
+              "name": "admin_bulk_update",
+              "file": "app.py",
+              "line": 66,
+              "is_entry_point": true
+            },
+            {
+              "function_id": "controllers/admin_controller.py::AdminController::process_bulk_update",
+              "name": "process_bulk_update",
+              "file": "controllers/admin_controller.py",
+              "line": 11
+            },
+            {
+              "function_id": "services/admin_service.py::AdminService::validate_template",
+              "name": "validate_template",
+              "file": "services/admin_service.py",
+              "line": 13
+            },
+            {
+              "function_id": "middleware/template_processor.py::TemplateProcessor::sanitize_template_input",
+              "name": "sanitize_template_input",
+              "file": "middleware/template_processor.py",
+              "line": 11,
+              "description": "SANITIZATION: Escapes and removes template syntax"
+            },
+            {
+              "function_id": "middleware/template_processor.py::TemplateProcessor::render_update_template",
+              "name": "render_update_template",
+              "file": "middleware/template_processor.py",
+              "line": 22,
+              "description": "SINK: Renders sanitized template"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN-7",
+      "finding_id": "python-ecommerce-ssti-002",
+      "classification": "FALSE_POSITIVE",
+      "false_positive_type": "FP_SAFE_CONTEXT",
+      "cwe": "CWE-1336",
+      "severity": "HIGH",
+      "vulnerability_type": "Server-Side Template Injection",
+      "sink_function": "repositories/dashboard_repository.py::DashboardRepository::create_dashboard_template",
+      "sink_line": 51,
+      "sink_code_pattern": "render_template_string(template, ...)",
+      "description": "SSTI pattern detected but template comes from trusted internal source, not user input",
+      "why_false_positive": "Template is loaded from self.trusted_templates dictionary defined in class __init__, user input only affects data passed to template, not template itself",
+      "safe_context_evidence": [
+        "Line 13-16: Templates hardcoded in __init__",
+        "Line 48: Template selected from trusted_templates dict",
+        "No user input flows into template string, only into template variables"
+      ],
+      "attack_paths": [
+        {
+          "path_id": "path_1",
+          "source_function": "app.py::admin_dashboard",
+          "sink_function": "repositories/dashboard_repository.py::DashboardRepository::create_dashboard_template",
+          "path_length": 5,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "function_chain": [
+            {
+              "function_id": "app.py::admin_dashboard",
+              "name": "admin_dashboard",
+              "file": "app.py",
+              "line": 77,
+              "is_entry_point": true
+            },
+            {
+              "function_id": "controllers/admin_controller.py::AdminController::generate_dashboard",
+              "name": "generate_dashboard",
+              "file": "controllers/admin_controller.py",
+              "line": 19
+            },
+            {
+              "function_id": "services/admin_service.py::AdminService::generate_dashboard",
+              "name": "generate_dashboard",
+              "file": "services/admin_service.py",
+              "line": 24
+            },
+            {
+              "function_id": "repositories/dashboard_repository.py::DashboardRepository::build_dashboard_data",
+              "name": "build_dashboard_data",
+              "file": "repositories/dashboard_repository.py",
+              "line": 18
+            },
+            {
+              "function_id": "repositories/dashboard_repository.py::DashboardRepository::create_dashboard_template",
+              "name": "create_dashboard_template",
+              "file": "repositories/dashboard_repository.py",
+              "line": 41,
+              "description": "SINK: Uses trusted template from internal dict"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN-8",
+      "finding_id": "python-ecommerce-sqli-006",
+      "classification": "TRUE_POSITIVE",
+      "cwe": "CWE-89",
+      "severity": "CRITICAL",
+      "vulnerability_type": "SQL Injection",
+      "sink_function": "repositories/analytics_repository.py::AnalyticsRepository::execute_analytics",
+      "sink_line": 40,
+      "sink_code_pattern": "cursor.execute(query)",
+      "description": "Complex SQL injection in analytics allowing arbitrary table access and query manipulation",
+      "exploitability": "CRITICAL",
+      "impact": "Complete database compromise, arbitrary query execution, data exfiltration across all tables",
+      "attack_vectors": [
+        "table parameter allows arbitrary table access",
+        "filters parameter enables WHERE clause injection",
+        "group_by parameter enables GROUP BY clause injection",
+        "metrics parameter controls SELECT clause"
+      ],
+      "attack_paths": [
+        {
+          "path_id": "path_1",
+          "source_function": "app.py::analytics_query",
+          "sink_function": "repositories/analytics_repository.py::AnalyticsRepository::execute_analytics",
+          "path_length": 5,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "function_chain": [
+            {
+              "function_id": "app.py::analytics_query",
+              "name": "analytics_query",
+              "file": "app.py",
+              "line": 86,
+              "is_entry_point": true,
+              "description": "Flask POST route accepting query and metrics"
+            },
+            {
+              "function_id": "controllers/analytics_controller.py::AnalyticsController::process_analytics_request",
+              "name": "process_analytics_request",
+              "file": "controllers/analytics_controller.py",
+              "line": 11,
+              "description": "Controller forwards to service"
+            },
+            {
+              "function_id": "services/analytics_service.py::AnalyticsService::transform_query",
+              "name": "transform_query",
+              "file": "services/analytics_service.py",
+              "line": 11,
+              "description": "Service transforms query without sanitization"
+            },
+            {
+              "function_id": "middleware/query_optimizer.py::QueryOptimizer::optimize_query",
+              "name": "optimize_query",
+              "file": "middleware/query_optimizer.py",
+              "line": 11,
+              "description": "Optimization layer doesn't sanitize"
+            },
+            {
+              "function_id": "middleware/query_optimizer.py::QueryOptimizer::build_analytics_query",
+              "name": "build_analytics_query",
+              "file": "middleware/query_optimizer.py",
+              "line": 24,
+              "description": "Builds query and calls repository"
+            },
+            {
+              "function_id": "repositories/analytics_repository.py::AnalyticsRepository::execute_analytics",
+              "name": "execute_analytics",
+              "file": "repositories/analytics_repository.py",
+              "line": 11,
+              "description": "SINK: Executes dynamically built SQL with user-controlled clauses"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "test_coverage": {
+    "entry_points": 8,
+    "total_functions": 35,
+    "total_attack_paths": 10,
+    "avg_path_length": 5.0,
+    "max_path_depth": 6,
+    "files_involved": 19,
+    "languages": ["python"]
+  }
+}
