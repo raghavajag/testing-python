@@ -1,71 +1,40 @@
-"""
-Account Service - Business logic for account operations
-"""
-
 from repositories.account_repository import AccountRepository
 from services.validation_service import ValidationService
-from utils.auth_helper import AuthHelper
-from utils.logger_helper import LoggerHelper
+from utils.input_processor import InputProcessor
 
 class AccountService:
     def __init__(self):
-        self.account_repository = AccountRepository()
-        self.validation_service = ValidationService()
-        self.auth_helper = AuthHelper()
-        self.logger = LoggerHelper()
+        self.repository = AccountRepository()
+        self.validator = ValidationService()
+        self.processor = InputProcessor()
     
-    def search_by_criteria(self, search_term, account_type):
-        """
-        Business logic for searching accounts
-        Calls validation then repository
-        """
-        self.logger.log_search_request(search_term, account_type)
-        
-        # Pass validated input through to repository
-        validated_input = self.validation_service.validate_and_sanitize(search_term, account_type)
-        
-        results = self.account_repository.search_accounts_raw(validated_input['term'], validated_input['type'])
-        return results
+    # VULN 1 PATH (5 functions): controller -> service -> processor -> repository -> db_helper
+    def search_by_name(self, name):
+        processed_name = self.processor.process_search_term(name)
+        return self.repository.search_accounts_raw(processed_name)
     
-    def process_transfer(self, from_account, to_account, amount):
-        """
-        Business logic for fund transfers
-        """
-        validated_accounts = self.validation_service.validate_account_ids(
-            from_account, to_account
-        )
-        
-        from_acc = self.account_repository.find_account_by_number(from_account)
-        to_acc = self.account_repository.find_account_by_number(to_account)
-        
-        if from_acc and to_acc:
-            result = self.account_repository.execute_transfer(
-                from_account, to_account, amount
-            )
-            return result
-        return {"error": "Account not found"}
+    # VULN 2 PATH (5 functions): controller -> service -> validator -> repository -> db_helper  
+    def find_by_id_safe(self, account_id):
+        validated_id = self.validator.validate_numeric(account_id)
+        return self.repository.find_by_id_parameterized(validated_id)
     
-    def get_account_balance(self, token):
-        """
-        Get account balance from token
-        """
-        account_number = self.auth_helper.extract_account_from_token(token)
-        
-        balance = self.account_repository.get_balance_raw(account_number)
-        return balance
+    # VULN 3 PATH (5 functions): controller -> service -> validator -> repository -> db_helper
+    def lookup_by_type(self, account_type):
+        validated_type = self.validator.validate_account_type(account_type)
+        return self.repository.lookup_by_validated_type(validated_type)
     
-    def generate_statement(self, account_number, start_date, end_date):
-        """
-        Generate account statement for date range
-        """
-        date_range = self.validation_service.parse_date_range(start_date, end_date)
-        
-        transactions = self.account_repository.get_transactions_in_range(
-            account_number, date_range['start'], date_range['end']
-        )
-        
-        return {
-            "account": account_number,
-            "transactions": transactions,
-            "period": date_range
-        }
+    # VULN 4 PATH (4 functions): controller -> service -> repository -> db_helper
+    def admin_raw_search(self, query):
+        return self.repository.admin_search_raw(query)
+    
+    # VULN 5 PATH A (4 functions): controller -> service -> repository -> db_helper
+    def generate_detailed_report(self, account_id):
+        return self.repository.get_detailed_report(account_id)
+    
+    # VULN 5 PATH B (dead - 4 functions): controller -> service -> repository -> db_helper
+    def generate_legacy_report(self, account_id):
+        return self.repository.get_legacy_report(account_id)
+    
+    # VULN 6 PATH (dead - 4 functions): controller -> service -> repository -> db_helper
+    def legacy_search(self, search_query):
+        return self.repository.legacy_search_raw(search_query)

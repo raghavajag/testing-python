@@ -1,73 +1,117 @@
 """
-Validation Service - Input validation and sanitization
+Validation Service - Input Validation and Sanitization
+=======================================================
+
+Provides various validation and sanitization methods to test false positive detection:
+1. Strict numeric validation (prevents SQL injection)
+2. Weak template safety check (partial protection)
+3. Allowlist validation
 """
 
-from utils.string_helper import StringHelper
-from utils.date_helper import DateHelper
+import re
+from typing import Any
+
 
 class ValidationService:
-    def __init__(self):
-        self.string_helper = StringHelper()
-        self.date_helper = DateHelper()
+    """Validation service with various validation patterns"""
     
-    def validate_and_sanitize(self, search_term, account_type):
-        """
-        Combined validation and sanitization - entry point
-        """
-        # First validate type
-        validated_type = self.validate_account_type(account_type)
-        
-        # Then sanitize input with validated context
-        sanitized_term = self.sanitize_search_input(search_term, validated_type)
-        
-        return {
-            'term': sanitized_term,
-            'type': validated_type
-        }
+    ALLOWED_ACCOUNT_TYPES = ['savings', 'checking', 'business', 'investment']
+    ALLOWED_ROLES = ['user', 'admin', 'manager', 'auditor']
     
-    def sanitize_search_input(self, search_term, validated_type=None):
-        """
-        Sanitize search input - passes through to string helper
-        Uses validated_type to determine cleaning strategy
-        """
-        # Clean the search term
-        cleaned = self.string_helper.clean_search_string(search_term)
-        
-        # If we have a validated type, combine them for further processing
-        if validated_type:
-            # Combine the cleaned term with validated type for context
-            combined = f"{cleaned}|{validated_type}"
-            return combined
-        
-        return cleaned
+    # ==================== STRICT VALIDATION (Effective Protection) ====================
     
-    def validate_account_type(self, account_type):
+    def validate_user_id(self, user_id: str) -> str:
         """
-        Validate account type
-        """
-        normalized = self.string_helper.normalize_string(account_type)
-        return normalized
-    
-    def validate_account_ids(self, from_account, to_account):
-        """
-        Validate account IDs format
-        """
-        from_valid = self.string_helper.validate_account_number(from_account)
-        to_valid = self.string_helper.validate_account_number(to_account)
+        CRITICAL for VULN 2: This provides effective protection against SQL injection
         
-        return {
-            "from_valid": from_valid,
-            "to_valid": to_valid
-        }
-    
-    def parse_date_range(self, start_date, end_date):
-        """
-        Parse and validate date range
-        """
-        parsed_start = self.date_helper.parse_date_string(start_date)
-        parsed_end = self.date_helper.parse_date_string(end_date)
+        Uses re.fullmatch() which ensures the ENTIRE string matches the pattern
+        Pattern ^[0-9]+$ ensures only digits, no SQL metacharacters possible
         
-        return {
-            "start": parsed_start,
-            "end": parsed_end
-        }
+        This is an example of Subcategory 2B (Validation-Based) false positive
+        """
+        # Strict validation - entire string must be numeric
+        if not re.fullmatch(r'^[0-9]+$', user_id):
+            raise ValueError(f"Invalid user ID format: {user_id}")
+        return user_id
+    
+    def validate_numeric(self, value: str) -> str:
+        """Strict numeric validation using fullmatch"""
+        if not re.fullmatch(r'[0-9]+', str(value)):
+            raise ValueError("Value must be numeric")
+        return value
+    
+    def validate_account_type(self, account_type: str) -> str:
+        """
+        Allowlist validation - only pre-defined values allowed
+        This is an example of effective validation for false positives
+        """
+        if account_type not in self.ALLOWED_ACCOUNT_TYPES:
+            raise ValueError(f"Invalid account type: {account_type}")
+        return account_type
+    
+    def validate_role(self, role: str) -> str:
+        """
+        Allowlist validation for user roles
+        Demonstrates strict validation that prevents injection
+        """
+        if role not in self.ALLOWED_ROLES:
+            raise ValueError(f"Invalid role: {role}")
+        return role
+    
+    # ==================== WEAK VALIDATION (Partial Protection) ====================
+    
+    def check_template_safety(self, template_code: str) -> bool:
+        """
+        CRITICAL for VULN 4: This is WEAK validation
+        
+        Only checks for obvious template markers like {{ and {%
+        Can be bypassed with:
+        - Unicode encoding: \u007b\u007b instead of {{
+        - Nested expressions: {​{7*7}}
+        - Alternative syntax
+        
+        This demonstrates partial protection that should result in good_to_fix
+        """
+        # Weak validation - only checks obvious patterns
+        dangerous_patterns = [
+            r'\{\{',  # Jinja2 variable markers
+            r'\{%',   # Jinja2 statement markers
+            r'__',    # Python magic methods
+            r'import',  # Import statements
+            r'eval',  # Eval function
+            r'exec',  # Exec function
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, template_code, re.IGNORECASE):
+                return False
+        
+        # Passes weak validation but still vulnerable
+        return True
+    
+    # ==================== SANITIZATION EXAMPLES ====================
+    
+    def sanitize_sql_input(self, input_value: str) -> str:
+        """
+        Example of SQL input sanitization
+        In practice, parameterized queries are better
+        """
+        # Remove common SQL injection characters
+        dangerous_chars = ["'", '"', ';', '--', '/*', '*/']
+        sanitized = input_value
+        for char in dangerous_chars:
+            sanitized = sanitized.replace(char, '')
+        return sanitized
+    
+    def sanitize_html(self, input_value: str) -> str:
+        """
+        Example of HTML sanitization
+        In practice, use libraries like bleach or html.escape
+        """
+        # Basic HTML character escaping
+        sanitized = input_value.replace('<', '&lt;')
+        sanitized = sanitized.replace('>', '&gt;')
+        sanitized = sanitized.replace('"', '&quot;')
+        sanitized = sanitized.replace("'", '&#x27;')
+        return sanitized
+
