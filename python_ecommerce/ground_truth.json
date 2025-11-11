@@ -1,0 +1,180 @@
+{
+  "codebase": "python_flask_ecommerce",
+  "language": "python",
+  "framework": "Flask",
+  "total_vulnerabilities": 8,
+  "vulnerability_distribution": {
+    "false_positive_dead_code": 1,
+    "false_positive_sanitized": 2,
+    "false_positive_protected": 2,
+    "must_fix": 2,
+    "good_to_fix": 1
+  },
+  "vulnerabilities": [
+    {
+      "vuln_id": "VULN_1",
+      "vuln_type": "SQL_INJECTION",
+      "expected_classification": "false_positive_dead_code",
+      "classification_subcategory": "unreachable_legacy_code",
+      "confidence": 0.95,
+      "sink_function_id": "repositories/legacy_repository.py::LegacyRepository::search_legacy_db",
+      "sink_line": 22,
+      "sink_code": "cursor.execute(sql)  # VULN 1: SQL INJECTION (DEAD CODE)",
+      "is_sink_dead": true,
+      "rationale": "All attack paths lead to the legacy controller which is never called in production. The legacy_bp blueprint is registered but the routes are not exposed or linked from any active code path. Static analysis confirms zero callers to these endpoints.",
+      "remediation": "Remove the entire legacy_controller.py, legacy_service.py, and legacy_repository.py as they are dead code and pose unnecessary security risk.",
+      "attack_paths": [
+        {
+          "path_id": "VULN_1_PATH_1",
+          "source_function": "controllers/legacy_controller.py::old_legacy_search",
+          "sink_function": "repositories/legacy_repository.py::LegacyRepository::search_legacy_db",
+          "path_length": 5,
+          "is_reachable": false,
+          "has_dead_code": true,
+          "expected_viability": "DEAD_CODE",
+          "function_chain": [
+            {
+              "function_id": "controllers/legacy_controller.py::old_legacy_search",
+              "name": "old_legacy_search",
+              "file": "controllers/legacy_controller.py",
+              "line": 15,
+              "is_entry_point": true,
+              "is_dead_code": true,
+              "class_name": null,
+              "code_snippet": "@legacy_bp.route('/old-search', methods=['GET'])\ndef old_legacy_search():"
+            },
+            {
+              "function_id": "services/legacy_service.py::LegacyService::search_old_database",
+              "name": "search_old_database",
+              "file": "services/legacy_service.py",
+              "line": 12,
+              "is_entry_point": false,
+              "is_dead_code": true,
+              "class_name": "LegacyService",
+              "code_snippet": "def search_old_database(self, query):"
+            },
+            {
+              "function_id": "services/legacy_service.py::LegacyService::_process_legacy_query",
+              "name": "_process_legacy_query",
+              "file": "services/legacy_service.py",
+              "line": 18,
+              "is_entry_point": false,
+              "is_dead_code": true,
+              "class_name": "LegacyService",
+              "code_snippet": "def _process_legacy_query(self, query):"
+            },
+            {
+              "function_id": "repositories/legacy_repository.py::LegacyRepository::search_legacy_db",
+              "name": "search_legacy_db",
+              "file": "repositories/legacy_repository.py",
+              "line": 17,
+              "is_entry_point": false,
+              "is_dead_code": true,
+              "class_name": "LegacyRepository",
+              "code_snippet": "def search_legacy_db(self, query):",
+              "is_sink": true
+            }
+          ]
+        },
+        {
+          "path_id": "VULN_1_PATH_2",
+          "source_function": "controllers/legacy_controller.py::deprecated_query",
+          "sink_function": "repositories/legacy_repository.py::LegacyRepository::execute_old_query",
+          "path_length": 5,
+          "is_reachable": false,
+          "has_dead_code": true,
+          "expected_viability": "DEAD_CODE",
+          "function_chain": [
+            {"function_id": "controllers/legacy_controller.py::deprecated_query", "name": "deprecated_query", "file": "controllers/legacy_controller.py", "line": 26, "is_entry_point": true, "is_dead_code": true},
+            {"function_id": "services/legacy_service.py::LegacyService::execute_legacy_query", "name": "execute_legacy_query", "file": "services/legacy_service.py", "line": 24, "is_dead_code": true},
+            {"function_id": "services/legacy_service.py::LegacyService::_format_for_legacy", "name": "_format_for_legacy", "file": "services/legacy_service.py", "line": 30, "is_dead_code": true},
+            {"function_id": "repositories/legacy_repository.py::LegacyRepository::execute_old_query", "name": "execute_old_query", "file": "repositories/legacy_repository.py", "line": 29, "is_dead_code": true, "is_sink": true}
+          ]
+        },
+        {
+          "path_id": "VULN_1_PATH_3",
+          "source_function": "controllers/legacy_controller.py::archive_search",
+          "sink_function": "repositories/legacy_repository.py::LegacyRepository::search_archive",
+          "path_length": 5,
+          "is_reachable": false,
+          "has_dead_code": true,
+          "expected_viability": "DEAD_CODE",
+          "function_chain": [
+            {"function_id": "controllers/legacy_controller.py::archive_search", "name": "archive_search", "file": "controllers/legacy_controller.py", "line": 37, "is_entry_point": true, "is_dead_code": true},
+            {"function_id": "services/legacy_service.py::LegacyService::search_archived_data", "name": "search_archived_data", "file": "services/legacy_service.py", "line": 33, "is_dead_code": true},
+            {"function_id": "services/legacy_service.py::LegacyService::_build_archive_key", "name": "_build_archive_key", "file": "services/legacy_service.py", "line": 38, "is_dead_code": true},
+            {"function_id": "repositories/legacy_repository.py::LegacyRepository::search_archive", "name": "search_archive", "file": "repositories/legacy_repository.py", "line": 41, "is_dead_code": true, "is_sink": true}
+          ]
+        }
+      ]
+    },
+    {
+      "vuln_id": "VULN_2",
+      "vuln_type": "SQL_INJECTION",
+      "expected_classification": "false_positive_sanitized",
+      "classification_subcategory": "2A_direct_sanitization_orm",
+      "confidence": 0.92,
+      "sink_function_id": "repositories/product_repository.py::ProductRepository::search_products_safe",
+      "sink_line": 24,
+      "sink_code": "cursor.execute(sql, (f\"%{query}%\", category))  # SAFE - parameterized",
+      "is_sink_dead": false,
+      "rationale": "All attack paths use parameterized queries (ORM-style) which prevent SQL injection. The repository methods use `cursor.execute(sql, params)` with parameter binding, which is the standard defense against SQL injection. The tainted user input is passed as parameters, not concatenated into the SQL string.",
+      "remediation": "No action required. This is properly secured with parameterized queries.",
+      "sanitization_mechanism": "Parameterized queries / prepared statements",
+      "sanitization_location": "At the repository layer (database access)",
+      "attack_paths": [
+        {
+          "path_id": "VULN_2_PATH_1",
+          "source_function": "controllers/product_controller.py::search_products",
+          "sink_function": "repositories/product_repository.py::ProductRepository::search_products_safe",
+          "path_length": 5,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "expected_viability": "PROTECTED",
+          "sanitization_effective": true,
+          "function_chain": [
+            {"function_id": "controllers/product_controller.py::search_products", "name": "search_products", "file": "controllers/product_controller.py", "line": 13, "is_entry_point": true, "decorators": ["@product_bp.route('/search', methods=['GET'])"]},
+            {"function_id": "services/product_service.py::ProductService::search_products", "name": "search_products", "file": "services/product_service.py", "line": 16, "class_name": "ProductService"},
+            {"function_id": "services/search_helper.py::SearchHelper::enrich_search_query", "name": "enrich_search_query", "file": "services/search_helper.py", "line": 11},
+            {"function_id": "repositories/product_repository.py::ProductRepository::search_products_safe", "name": "search_products_safe", "file": "repositories/product_repository.py", "line": 19, "is_sink": true, "has_sanitization": true}
+          ]
+        },
+        {
+          "path_id": "VULN_2_PATH_2",
+          "source_function": "controllers/product_controller.py::advanced_product_search",
+          "sink_function": "repositories/product_repository.py::ProductRepository::search_with_filters",
+          "path_length": 6,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "expected_viability": "PROTECTED",
+          "sanitization_effective": true,
+          "function_chain": [
+            {"function_id": "controllers/product_controller.py::advanced_product_search", "name": "advanced_product_search", "file": "controllers/product_controller.py", "line": 24, "is_entry_point": true},
+            {"function_id": "services/search_service.py::SearchService::perform_advanced_search", "name": "perform_advanced_search", "file": "services/search_service.py", "line": 17},
+            {"function_id": "services/search_helper.py::SearchHelper::build_search_parameters", "name": "build_search_parameters", "file": "services/search_helper.py", "line": 21},
+            {"function_id": "services/search_service.py::SearchService::_execute_filtered_search", "name": "_execute_filtered_search", "file": "services/search_service.py", "line": 24},
+            {"function_id": "repositories/product_repository.py::ProductRepository::search_with_filters", "name": "search_with_filters", "file": "repositories/product_repository.py", "line": 29, "is_sink": true, "has_sanitization": true}
+          ]
+        },
+        {
+          "path_id": "VULN_2_PATH_3",
+          "source_function": "controllers/product_controller.py::filter_products",
+          "sink_function": "repositories/product_repository.py::ProductRepository::search_with_filters",
+          "path_length": 6,
+          "is_reachable": true,
+          "has_dead_code": false,
+          "expected_viability": "PROTECTED",
+          "sanitization_effective": true,
+          "function_chain": [
+            {"function_id": "controllers/product_controller.py::filter_products", "name": "filter_products", "file": "controllers/product_controller.py", "line": 34, "is_entry_point": true},
+            {"function_id": "services/product_service.py::ProductService::filter_products_by_price_and_name", "name": "filter_products_by_price_and_name", "file": "services/product_service.py", "line": 25},
+            {"function_id": "services/filter_service.py::FilterService::validate_price_range", "name": "validate_price_range", "file": "services/filter_service.py", "line": 9},
+            {"function_id": "services/filter_service.py::FilterService::apply_name_and_price_filter", "name": "apply_name_and_price_filter", "file": "services/filter_service.py", "line": 16},
+            {"function_id": "services/filter_service.py::FilterService::_execute_price_filter", "name": "_execute_price_filter", "file": "services/filter_service.py", "line": 28},
+            {"function_id": "repositories/product_repository.py::ProductRepository::search_with_filters", "name": "search_with_filters", "file": "repositories/product_repository.py", "line": 29, "is_sink": true, "has_sanitization": true}
+          ]
+        }
+      ]
+    }
+  ]
+}
