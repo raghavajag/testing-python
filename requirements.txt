@@ -1,0 +1,34 @@
+# Python Banking Applications - False Positive Test Codebase
+# Includes Django and FastAPI implementations
+
+# Django Framework (for TEST CASES 1 & 5)
+Django==4.2.5
+django-cors-headers==4.2.0
+psycopg2-binary==2.9.7
+
+# FastAPI Framework (for TEST CASE 2)
+fastapi==0.103.1
+uvicorn==0.23.2
+pydantic==2.3.0
+pydantic-settings==2.0.3
+
+# SQLAlchemy (for TEST CASE 4 - Defense-in-Depth)
+SQLAlchemy==2.0.20
+alembic==1.11.3
+
+# Security
+django-ratelimit==4.1.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Database
+pymysql==1.1.0
+
+# Testing
+pytest==7.4.2
+pytest-django==4.5.2
+pytest-asyncio==0.21.1
+httpx==0.24.1
+
+# Utilities
+python-dotenv==1.0.0
